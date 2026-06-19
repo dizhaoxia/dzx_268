@@ -108,6 +108,14 @@ function handleSelectObject(id: string | null) {
     viewportRef.value?.detachTransform()
   }
 }
+
+function handleUndo() {
+  history.undo()
+}
+
+function handleRedo() {
+  history.redo()
+}
 </script>
 
 <template>
@@ -122,6 +130,8 @@ function handleSelectObject(id: string | null) {
       @toggle-grid="handleToggleGrid"
       @toggle-axes="handleToggleAxes"
       @set-transform-mode="handleSetTransformMode"
+      @undo="handleUndo"
+      @redo="handleRedo"
     />
     <div class="flex-1 flex overflow-hidden">
       <div

@@ -1,12 +1,63 @@
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, markRaw } from 'vue'
+import * as THREE from 'three'
 import { useHistoryStore } from '@/stores/historyStore'
 import { useSceneStore } from '@/stores/sceneStore'
 import type { HistoryAction, HistoryActionType } from '@/types/history'
 import { generateId } from '@/utils/helpers'
+import { createGeometry, createMaterial } from '@/utils/geometryFactory'
+import { createLight } from '@/utils/lightFactory'
+import { getThreeObject, setThreeObject } from '@/utils/threeObjectRegistry'
 
 export function useHistory() {
   const historyStore = useHistoryStore()
   const sceneStore = useSceneStore()
+  
+  function recreateThreeObject(snapshot: any): THREE.Object3D | null {
+    if (!snapshot) return null
+    
+    if (snapshot.type === 'mesh' && snapshot.geometry) {
+      const geometry = markRaw(createGeometry(snapshot.geometry.type, snapshot.geometry.parameters))
+      const material = markRaw(createMaterial(snapshot.material))
+      const mesh = markRaw(new THREE.Mesh(geometry, material))
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.position.set(
+        snapshot.transform.position.x,
+        snapshot.transform.position.y,
+        snapshot.transform.position.z
+      )
+      mesh.rotation.set(
+        THREE.MathUtils.degToRad(snapshot.transform.rotation.x),
+        THREE.MathUtils.degToRad(snapshot.transform.rotation.y),
+        THREE.MathUtils.degToRad(snapshot.transform.rotation.z)
+      )
+      mesh.scale.set(
+        snapshot.transform.scale.x,
+        snapshot.transform.scale.y,
+        snapshot.transform.scale.z
+      )
+      mesh.visible = snapshot.visible
+      return mesh
+    }
+    
+    if (snapshot.type === 'light' && snapshot.light) {
+      const light = markRaw(createLight(snapshot.light))
+      light.position.set(
+        snapshot.transform.position.x,
+        snapshot.transform.position.y,
+        snapshot.transform.position.z
+      )
+      light.rotation.set(
+        THREE.MathUtils.degToRad(snapshot.transform.rotation.x),
+        THREE.MathUtils.degToRad(snapshot.transform.rotation.y),
+        THREE.MathUtils.degToRad(snapshot.transform.rotation.z)
+      )
+      light.visible = snapshot.visible
+      return light
+    }
+    
+    return null
+  }
   
   function pushAction(
     type: HistoryActionType,
@@ -109,7 +160,8 @@ export function useHistory() {
         for (const id of action.objectIds) {
           if (action.before[id]) {
             const obj = action.before[id]
-            sceneStore.addObject(obj as any)
+            const threeObj = recreateThreeObject(obj)
+            sceneStore.addObject(obj as any, threeObj || undefined)
           }
         }
         break
@@ -137,7 +189,8 @@ export function useHistory() {
         for (const id of action.objectIds) {
           if (action.after[id]) {
             const obj = action.after[id]
-            sceneStore.addObject(obj as any)
+            const threeObj = recreateThreeObject(obj)
+            sceneStore.addObject(obj as any, threeObj || undefined)
           }
         }
         break

@@ -210,23 +210,49 @@ export function useImportExport() {
     isLoading.value = true
     
     try {
-      const exportScene = threeScene.clone()
+      const exportScene = markRaw(new THREE.Scene())
+      exportScene.background = threeScene.background ? threeScene.background.clone() : null
       
-      const toRemove: THREE.Object3D[] = []
-      exportScene.traverse((obj) => {
-        if (obj.userData.isHelper || obj instanceof THREE.GridHelper || obj instanceof THREE.AxesHelper) {
-          toRemove.push(obj)
+      const exportObject = (obj: THREE.Object3D, parent: THREE.Object3D) => {
+        if (obj.userData.isHelper || 
+            obj instanceof THREE.GridHelper || 
+            obj instanceof THREE.AxesHelper ||
+            obj.type === 'TransformControlsPlane' || 
+            obj.type.includes('TransformControls') ||
+            obj.userData.id === 'root') {
+          return
         }
-        if (obj.type === 'TransformControlsPlane' || obj.type.includes('TransformControls')) {
-          toRemove.push(obj)
+        
+        let cloned: THREE.Object3D
+        if (obj instanceof THREE.Mesh) {
+          const clonedGeometry = obj.geometry.clone()
+          const clonedMaterial = Array.isArray(obj.material) 
+            ? obj.material.map(m => m.clone())
+            : obj.material.clone()
+          cloned = markRaw(new THREE.Mesh(clonedGeometry, clonedMaterial))
+        } else if (obj instanceof THREE.Light) {
+          cloned = markRaw(obj.clone())
+        } else if (obj instanceof THREE.Group || obj.type === 'Group') {
+          cloned = markRaw(new THREE.Group())
+        } else {
+          cloned = markRaw(new THREE.Object3D())
         }
-      })
+        
+        cloned.position.copy(obj.position)
+        cloned.rotation.copy(obj.rotation)
+        cloned.scale.copy(obj.scale)
+        cloned.visible = obj.visible
+        cloned.userData = { ...obj.userData }
+        parent.add(cloned)
+        
+        for (const child of obj.children) {
+          exportObject(child, cloned)
+        }
+      }
       
-      toRemove.forEach(obj => {
-        if (obj.parent) {
-          obj.parent.remove(obj)
-        }
-      })
+      for (const child of threeScene.children) {
+        exportObject(child, exportScene)
+      }
       
       const glb = await new Promise<ArrayBuffer>((resolve, reject) => {
         gltfExporter.parse(

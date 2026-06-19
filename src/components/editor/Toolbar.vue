@@ -34,6 +34,8 @@ interface Props {
   onSetView?: (view: 'perspective' | 'front' | 'top' | 'right') => void
   onToggleGrid?: (visible: boolean) => void
   onToggleAxes?: (visible: boolean) => void
+  onUndo?: () => void
+  onRedo?: () => void
 }
 
 const props = withDefaults(defineProps<Props>(), {})
@@ -48,6 +50,8 @@ const emit = defineEmits<{
   toggleGrid: [visible: boolean]
   toggleAxes: [visible: boolean]
   setTransformMode: [mode: TransformMode]
+  undo: []
+  redo: []
 }>()
 
 const uiStore = useUiStore()
@@ -64,9 +68,11 @@ function setTransformMode(mode: TransformMode) {
 }
 
 function handleUndo() {
+  emit('undo')
 }
 
 function handleRedo() {
+  emit('redo')
 }
 
 function handleDelete() {
