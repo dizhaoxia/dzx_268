@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Layers, ListTree } from 'lucide-vue-next'
+import { Layers, ListTree, Package, FolderOpen } from 'lucide-vue-next'
 import { useUiStore } from '@/stores/uiStore'
+import type { LeftPanelTab } from '@/stores/uiStore'
 import GeometryLibrary from '@/components/panels/GeometryLibrary.vue'
 import LightLibrary from '@/components/panels/LightLibrary.vue'
 import ModelImporter from '@/components/panels/ModelImporter.vue'
 import Outliner from '@/components/editor/Outliner.vue'
+import PresetLibrary from '@/components/panels/PresetLibrary.vue'
+import AssetExplorer from '@/components/panels/AssetExplorer.vue'
 
 interface Props {
   isLoading?: boolean
@@ -24,9 +27,16 @@ const emit = defineEmits<{
 
 const uiStore = useUiStore()
 
-const activeTab = ref<'library' | 'outliner'>('library')
+const tabs: { id: LeftPanelTab; icon: any; label: string }[] = [
+  { id: 'library', icon: Layers, label: '资源库' },
+  { id: 'outliner', icon: ListTree, label: '场景' },
+  { id: 'presets', icon: Package, label: '预设' },
+  { id: 'assets', icon: FolderOpen, label: '资源' },
+]
 
-function setTab(tab: 'library' | 'outliner') {
+const activeTab = ref<LeftPanelTab>('library')
+
+function setTab(tab: LeftPanelTab) {
   activeTab.value = tab
   uiStore.setLeftPanelTab(tab)
 }
@@ -36,38 +46,42 @@ function setTab(tab: 'library' | 'outliner') {
   <div class="h-full flex flex-col bg-slate-900 border-r border-slate-700">
     <div class="flex border-b border-slate-700">
       <button
-        class="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium transition-colors"
+        v-for="tab in tabs"
+        :key="tab.id"
+        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors relative"
         :class="[
-          activeTab === 'library'
-            ? 'bg-slate-800 text-sky-400 border-b-2 border-sky-400'
-            : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+          activeTab === tab.id
+            ? 'bg-slate-800 text-sky-400'
+            : 'text-slate-500 hover:text-slate-400 hover:bg-slate-800/50'
         ]"
-        @click="setTab('library')"
+        @click="setTab(tab.id)"
       >
-        <Layers :size="14" :stroke-width="1.5" />
-        资源库
-      </button>
-      <button
-        class="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium transition-colors"
-        :class="[
-          activeTab === 'outliner'
-            ? 'bg-slate-800 text-sky-400 border-b-2 border-sky-400'
-            : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
-        ]"
-        @click="setTab('outliner')"
-      >
-        <ListTree :size="14" :stroke-width="1.5" />
-        场景
+        <component :is="tab.icon" :size="14" />
+        <span>{{ tab.label }}</span>
+        <div
+          v-if="activeTab === tab.id"
+          class="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400"
+        />
       </button>
     </div>
+
     <div class="flex-1 overflow-hidden">
       <div v-show="activeTab === 'library'" class="h-full overflow-y-auto">
         <GeometryLibrary @add-geometry="emit('addGeometry', $event, $event)" />
         <LightLibrary @add-light="emit('addLight', $event, $event)" />
         <ModelImporter :is-loading="isLoading" @import-model="emit('importModel', $event)" />
       </div>
-      <div v-show="activeTab === 'outliner'" class="h-full">
+
+      <div v-show="activeTab === 'outliner'" class="h-full overflow-y-auto">
         <Outliner @select-object="emit('selectObject', $event)" />
+      </div>
+
+      <div v-show="activeTab === 'presets'" class="h-full overflow-y-auto">
+        <PresetLibrary />
+      </div>
+
+      <div v-show="activeTab === 'assets'" class="h-full overflow-y-auto">
+        <AssetExplorer />
       </div>
     </div>
   </div>
